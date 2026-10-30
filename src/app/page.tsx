@@ -3,51 +3,36 @@ import { Sparkles, Clock, Pin, Flame, ArrowRight } from "lucide-react";
 import { Header } from "@/components/zentry/header";
 import { MarketTicker } from "@/components/zentry/market-ticker";
 import { CategoryNav } from "@/components/zentry/category-nav";
-import { ArticleCard, type ArticleCardData } from "@/components/zentry/article-card";
+import { ArticleCard } from "@/components/zentry/article-card";
 import { RightSidebar } from "@/components/zentry/right-sidebar";
 import { VisitorCounter } from "@/components/zentry/visitor-counter";
 import { Footer } from "@/components/zentry/footer";
 import { CATEGORIES, PROJECT_DEFAULTS, ZODIAC_SIGNS } from "@/lib/constants";
 import {
-  DEMO_ARTICLES,
   DEMO_MARKET_TICKS,
-  DEMO_WEATHER,
-  DEMO_HOROSCOPES,
-  DEMO_US_EVENTS,
   DEMO_VISITOR_COUNT,
 } from "@/lib/demo-data";
 import { fetchMarketTicks, fetchWeather, fetchUsEvents, fetchHoroscope } from "@/lib/providers";
 import { websiteJsonLd, organizationJsonLd, safeJsonLd } from "@/lib/seo";
+import { db } from "@/lib/db";
+import { toArticleCard, publicArticleWhere } from "@/lib/article-mapper";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 300; // ISR — refresh every 5 min
 
-const articleCardData = (a: typeof DEMO_ARTICLES[number]): ArticleCardData => ({
-  id: a.id,
-  title: a.title,
-  slug: a.slug,
-  excerpt: a.excerpt,
-  categorySlug: a.categorySlug,
-  categoryName: a.categoryName,
-  categoryColor: a.categoryColor,
-  coverImageUrl: a.coverImageUrl,
-  coverImageAlt: a.coverImageAlt,
-  sourceName: a.sourceName,
-  publishedAt: a.publishedAt,
-  readingMinutes: a.readingMinutes,
-  isBreaking: a.isBreaking,
-  featured: a.featured,
-  keepForever: a.keepForever,
-  aiSummary: a.aiSummary,
-  aiConfidence: a.aiConfidence,
-});
-
 export default async function HomePage() {
   // Fetch live data in parallel — providers fall back to demo on failure
-  const [liveTicks, weather, usEvents] = await Promise.all([
+  const [liveTicks, weather, usEvents, dbArticles] = await Promise.all([
     fetchMarketTicks(),
     fetchWeather(),
     fetchUsEvents(),
+    // Fetch published articles (within 48h retention, or pinned forever, or breaking)
+    db.article.findMany({
+      where: publicArticleWhere(),
+      orderBy: [{ isBreaking: "desc" }, { publishedAt: "desc" }],
+      take: 20,
+      include: { category: { select: { name: true, slug: true, color: true } } },
+    }),
   ]);
   const ticks = liveTicks.length > 0 ? liveTicks : DEMO_MARKET_TICKS;
 
@@ -59,10 +44,14 @@ export default async function HomePage() {
     })),
   );
 
-  const featured = DEMO_ARTICLES.filter((a) => a.featured);
-  const breaking = DEMO_ARTICLES.filter((a) => a.isBreaking);
-  const regular = DEMO_ARTICLES.filter((a) => !a.featured);
-  const hero = featured[0] ?? DEMO_ARTICLES[0];
+  // Map DB articles to UI card data
+  const articles = dbArticles.map(toArticleCard);
+
+  // If no articles in DB, fall back to a friendly empty state
+  const featured = articles.filter((a) => a.featured);
+  const breaking = articles.filter((a) => a.isBreaking);
+  const regular = articles.filter((a) => !a.featured);
+  const hero = featured[0] ?? articles[0];
   const featuredRest = featured.slice(1, 3);
 
   return (
@@ -116,75 +105,94 @@ export default async function HomePage() {
                 </div>
               )}
 
-              <section className="mb-8">
-                <SectionHeading title="Top Story" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <ArticleCard article={articleCardData(hero)} variant="featured" priority />
-                  <div className="grid grid-rows-2 gap-4">
-                    {featuredRest.map((a) => (
-                      <ArticleCard key={a.id} article={articleCardData(a)} variant="default" />
-                    ))}
-                  </div>
+              {articles.length === 0 ? (
+                <div className="py-20 text-center">
+                  <Sparkles size={32} className="mx-auto mb-4 text-amber-glow/50" />
+                  <h2 className="font-serif text-xl font-bold text-foreground mb-2">No articles published yet</h2>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Articles appear here once an admin approves them in the editorial panel.
+                  </p>
+                  <Link href="/archive" className="text-amber-glow hover:underline text-sm inline-flex items-center gap-1">
+                    Browse the archive <ArrowRight size={12} />
+                  </Link>
                 </div>
-              </section>
-
-              <section className="mb-8">
-                <SectionHeading title="Latest News" link="/archive" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {regular.slice(0, 6).map((a, i) => (
-                    <ArticleCard key={a.id} article={articleCardData(a)} priority={i < 2} />
-                  ))}
-                </div>
-              </section>
-
-              {/* Featured categories strip */}
-              <section className="mb-8">
-                <SectionHeading title="Browse by Topic" />
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {CATEGORIES.slice(0, 8).map((cat) => (
-                    <Link
-                      key={cat.id}
-                      href={`/category/${cat.slug}`}
-                      className="arena-card-hover group relative overflow-hidden rounded-lg border border-bronze/15 bg-graphite/30 p-4 h-24 flex flex-col justify-between"
-                    >
-                      <div
-                        className="absolute -right-4 -top-4 w-20 h-20 rounded-full opacity-15 blur-xl"
-                        style={{ backgroundColor: cat.color }}
-                      />
-                      <div className="relative">
-                        <div className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: cat.color }}>
-                          {cat.subcategories[0] ?? "Topic"}
+              ) : (
+                <>
+                  {hero && (
+                    <section className="mb-8">
+                      <SectionHeading title="Top Story" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <ArticleCard article={hero} variant="featured" priority />
+                        <div className="grid grid-rows-2 gap-4">
+                          {featuredRest.map((a) => (
+                            <ArticleCard key={a.id} article={a} variant="default" />
+                          ))}
                         </div>
-                        <h3 className="font-serif text-sm font-bold text-foreground leading-tight group-hover:text-amber-glow transition-colors">
-                          {cat.name}
-                        </h3>
                       </div>
-                      <ArrowRight size={14} className="relative text-muted-foreground group-hover:text-amber-glow group-hover:translate-x-1 transition-all" />
+                    </section>
+                  )}
+
+                  {regular.length > 0 && (
+                    <section className="mb-8">
+                      <SectionHeading title="Latest News" link="/archive" />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {regular.slice(0, 6).map((a, i) => (
+                          <ArticleCard key={a.id} article={a} priority={i < 2} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Featured categories strip */}
+                  <section className="mb-8">
+                    <SectionHeading title="Browse by Topic" />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {CATEGORIES.slice(0, 8).map((cat) => (
+                        <Link
+                          key={cat.id}
+                          href={`/category/${cat.slug}`}
+                          className="arena-card-hover group relative overflow-hidden rounded-lg border border-bronze/15 bg-graphite/30 p-4 h-24 flex flex-col justify-between"
+                        >
+                          <div
+                            className="absolute -right-4 -top-4 w-20 h-20 rounded-full opacity-15 blur-xl"
+                            style={{ backgroundColor: cat.color }}
+                          />
+                          <div className="relative">
+                            <div className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: cat.color }}>
+                              {cat.subcategories[0] ?? "Topic"}
+                            </div>
+                            <h3 className="font-serif text-sm font-bold text-foreground leading-tight group-hover:text-amber-glow transition-colors">
+                              {cat.name}
+                            </h3>
+                          </div>
+                          <ArrowRight size={14} className="relative text-muted-foreground group-hover:text-amber-glow group-hover:translate-x-1 transition-all" />
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
+
+                  {regular.length > 6 && (
+                    <section className="mb-4">
+                      <SectionHeading title="More to Read" link="/archive" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {regular.slice(6).map((a) => (
+                          <ArticleCard key={a.id} article={a} variant="list" />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  <div className="mt-8 flex justify-center">
+                    <Link
+                      href="/archive"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md border border-bronze/30 text-amber-glow hover:bg-bronze/10 transition-colors text-sm font-medium"
+                    >
+                      Browse the archive
+                      <ArrowRight size={14} />
                     </Link>
-                  ))}
-                </div>
-              </section>
-
-              {regular.length > 6 && (
-                <section className="mb-4">
-                  <SectionHeading title="More to Read" link="/archive" />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {regular.slice(6).map((a) => (
-                      <ArticleCard key={a.id} article={articleCardData(a)} variant="list" />
-                    ))}
                   </div>
-                </section>
+                </>
               )}
-
-              <div className="mt-8 flex justify-center">
-                <Link
-                  href="/archive"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md border border-bronze/30 text-amber-glow hover:bg-bronze/10 transition-colors text-sm font-medium"
-                >
-                  Browse the archive
-                  <ArrowRight size={14} />
-                </Link>
-              </div>
             </main>
 
             {/* RIGHT SIDEBAR */}

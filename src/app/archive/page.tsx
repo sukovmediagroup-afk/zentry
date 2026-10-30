@@ -2,13 +2,16 @@ import Link from "next/link";
 import { Header } from "@/components/zentry/header";
 import { MarketTicker } from "@/components/zentry/market-ticker";
 import { CategoryNav } from "@/components/zentry/category-nav";
-import { ArticleCard, type ArticleCardData } from "@/components/zentry/article-card";
+import { ArticleCard } from "@/components/zentry/article-card";
 import { Footer } from "@/components/zentry/footer";
-import { DEMO_ARTICLES, DEMO_MARKET_TICKS, DEMO_VISITOR_COUNT } from "@/lib/demo-data";
+import { DEMO_MARKET_TICKS, DEMO_VISITOR_COUNT } from "@/lib/demo-data";
+import { fetchMarketTicks } from "@/lib/providers";
+import { db } from "@/lib/db";
+import { toArticleCard, archiveArticleWhere } from "@/lib/article-mapper";
 import { buildMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = buildMetadata({
   title: "Archive",
@@ -16,33 +19,23 @@ export const metadata: Metadata = buildMetadata({
   path: "/archive",
 });
 
-export default function ArchivePage() {
-  const sorted = [...DEMO_ARTICLES].sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-  );
+export default async function ArchivePage() {
+  const ticks = await fetchMarketTicks().catch(() => DEMO_MARKET_TICKS);
 
-  const cardData: ArticleCardData[] = sorted.map((a) => ({
-    id: a.id,
-    title: a.title,
-    slug: a.slug,
-    excerpt: a.excerpt,
-    categorySlug: a.categorySlug,
-    categoryName: a.categoryName,
-    categoryColor: a.categoryColor,
-    coverImageUrl: a.coverImageUrl,
-    coverImageAlt: a.coverImageAlt,
-    sourceName: a.sourceName,
-    publishedAt: a.publishedAt,
-    readingMinutes: a.readingMinutes,
-    isBreaking: a.isBreaking,
-    featured: a.featured,
-    keepForever: a.keepForever,
-  }));
+  // Fetch all published + archived articles from DB
+  const dbArticles = await db.article.findMany({
+    where: archiveArticleWhere(),
+    orderBy: { publishedAt: "desc" },
+    take: 100,
+    include: { category: { select: { name: true, slug: true, color: true } } },
+  }).catch(() => []);
+
+  const cardData = dbArticles.map(toArticleCard);
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header visitorCount={DEMO_VISITOR_COUNT} />
-      <MarketTicker items={DEMO_MARKET_TICKS} />
+      <MarketTicker items={ticks} />
 
       <div className="mx-auto w-full max-w-[1600px] flex-1 px-4 lg:px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
@@ -68,11 +61,20 @@ export default function ArchivePage() {
               </p>
             </header>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {cardData.map((a, i) => (
-                <ArticleCard key={a.id} article={a} priority={i < 3} />
-              ))}
-            </div>
+            {cardData.length === 0 ? (
+              <div className="py-20 text-center">
+                <p className="text-muted-foreground">No articles published yet.</p>
+                <Link href="/" className="mt-4 inline-block text-amber-glow hover:underline text-sm">
+                  Back to home
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {cardData.map((a, i) => (
+                  <ArticleCard key={a.id} article={a} priority={i < 3} />
+                ))}
+              </div>
+            )}
           </main>
         </div>
       </div>

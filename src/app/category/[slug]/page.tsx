@@ -4,31 +4,28 @@ import { ChevronRight, ArrowRight } from "lucide-react";
 import { Header } from "@/components/zentry/header";
 import { MarketTicker } from "@/components/zentry/market-ticker";
 import { CategoryNav } from "@/components/zentry/category-nav";
-import { ArticleCard, type ArticleCardData } from "@/components/zentry/article-card";
+import { ArticleCard } from "@/components/zentry/article-card";
 import { RightSidebar } from "@/components/zentry/right-sidebar";
 import { Footer } from "@/components/zentry/footer";
-import { CATEGORIES, CATEGORY_MAP } from "@/lib/constants";
 import {
-  DEMO_ARTICLES,
   DEMO_MARKET_TICKS,
   DEMO_WEATHER,
   DEMO_HOROSCOPES,
   DEMO_US_EVENTS,
   DEMO_VISITOR_COUNT,
 } from "@/lib/demo-data";
+import { fetchMarketTicks, fetchWeather, fetchUsEvents, fetchHoroscope } from "@/lib/providers";
+import { CATEGORIES, CATEGORY_MAP, ZODIAC_SIGNS } from "@/lib/constants";
+import { db } from "@/lib/db";
+import { toArticleCard, publicArticleWhere } from "@/lib/article-mapper";
 import { buildMetadata, breadcrumbJsonLd, safeJsonLd } from "@/lib/seo";
 import type { Metadata } from "next";
 
-export const dynamic = "force-static";
-export const dynamicParams = true;
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ sub?: string }>;
-}
-
-export async function generateStaticParams() {
-  return CATEGORIES.map((c) => ({ slug: c.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -49,32 +46,42 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   const category = CATEGORY_MAP[slug];
   if (!category) notFound();
 
-  let articles = DEMO_ARTICLES.filter((a) => a.categorySlug === slug);
+  // Fetch live data in parallel
+  const [liveTicks, weather, usEvents] = await Promise.all([
+    fetchMarketTicks(),
+    fetchWeather(),
+    fetchUsEvents(),
+  ]);
+  const ticks = liveTicks.length > 0 ? liveTicks : DEMO_MARKET_TICKS;
+
+  // Build horoscopes (cached by sign, refreshed daily)
+  const horoscopes = await Promise.all(
+    ZODIAC_SIGNS.map(async (sign) => ({ sign, text: await fetchHoroscope(sign) })),
+  );
+
+  // Fetch articles from DB for this category
+  let dbArticles = await db.article.findMany({
+    where: {
+      ...publicArticleWhere(),
+      category: { slug: category.slug },
+    },
+    orderBy: [{ isBreaking: "desc" }, { publishedAt: "desc" }],
+    take: 50,
+    include: { category: { select: { name: true, slug: true, color: true } } },
+  }).catch(() => []);
+
+  // If sub-category filter is set, filter by tag (article.tags contains sub string)
   if (sub) {
-    articles = articles.filter((a) =>
-      a.tags.some((t) => t.toLowerCase().includes(sub.toLowerCase())),
-    );
+    dbArticles = dbArticles.filter((a) => {
+      // We don't fetch tags in this query — fall back to aiCategories field
+      const aiCats = a.aiCategories ? safeParse(a.aiCategories) : [];
+      // Simple substring match against excerpt/content for now
+      const lower = (a.title + " " + (a.excerpt ?? "")).toLowerCase();
+      return lower.includes(sub.toLowerCase());
+    });
   }
 
-  const cardData: ArticleCardData[] = articles.map((a) => ({
-    id: a.id,
-    title: a.title,
-    slug: a.slug,
-    excerpt: a.excerpt,
-    categorySlug: a.categorySlug,
-    categoryName: a.categoryName,
-    categoryColor: a.categoryColor,
-    coverImageUrl: a.coverImageUrl,
-    coverImageAlt: a.coverImageAlt,
-    sourceName: a.sourceName,
-    publishedAt: a.publishedAt,
-    readingMinutes: a.readingMinutes,
-    isBreaking: a.isBreaking,
-    featured: a.featured,
-    keepForever: a.keepForever,
-    aiSummary: a.aiSummary,
-    aiConfidence: a.aiConfidence,
-  }));
+  const cardData = dbArticles.map(toArticleCard);
 
   return (
     <>
@@ -90,7 +97,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 
       <div className="min-h-screen flex flex-col">
         <Header visitorCount={DEMO_VISITOR_COUNT} />
-        <MarketTicker items={DEMO_MARKET_TICKS} />
+        <MarketTicker items={ticks} />
 
         <div className="mx-auto w-full max-w-[1600px] flex-1 px-4 lg:px-6 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_340px] gap-6">
@@ -146,7 +153,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 
               {cardData.length === 0 ? (
                 <div className="py-20 text-center">
-                  <p className="text-muted-foreground mb-4">No articles in this section yet.</p>
+                  <p className="text-muted-foreground mb-4">No articles published in this section yet.</p>
                   <Link href="/" className="text-amber-glow hover:underline text-sm inline-flex items-center gap-1">
                     Back to home <ArrowRight size={12} />
                   </Link>
@@ -169,9 +176,9 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 
             <div>
               <RightSidebar
-                weather={DEMO_WEATHER}
-                horoscopes={DEMO_HOROSCOPES}
-                events={DEMO_US_EVENTS}
+                weather={weather}
+                horoscopes={horoscopes}
+                events={usEvents}
                 visitorCount={DEMO_VISITOR_COUNT}
               />
             </div>
@@ -182,4 +189,8 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       </div>
     </>
   );
+}
+
+function safeParse(s: string): any {
+  try { return JSON.parse(s); } catch { return []; }
 }

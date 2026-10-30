@@ -150,19 +150,21 @@ export function articleJsonLd(article: {
   description?: string;
   slug: string;
   image?: string;
-  datePublished?: Date;
-  dateModified?: Date;
+  datePublished?: Date | string;
+  dateModified?: Date | string;
   authorName?: string;
   categoryName?: string;
 }) {
+  const dp = article.datePublished instanceof Date ? article.datePublished : article.datePublished ? new Date(article.datePublished) : undefined;
+  const dm = article.dateModified instanceof Date ? article.dateModified : article.dateModified ? new Date(article.dateModified) : dp;
   return {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
     headline: article.title,
     description: article.description,
     image: article.image ? [article.image] : undefined,
-    datePublished: article.datePublished?.toISOString(),
-    dateModified: (article.dateModified ?? article.datePublished)?.toISOString(),
+    datePublished: dp?.toISOString(),
+    dateModified: (dm ?? dp)?.toISOString(),
     author: article.authorName
       ? { "@type": "Person", name: article.authorName }
       : { "@type": "Organization", name: PROJECT_DEFAULTS.siteName },

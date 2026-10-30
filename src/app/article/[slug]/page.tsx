@@ -6,15 +6,16 @@ import { Header } from "@/components/zentry/header";
 import { MarketTicker } from "@/components/zentry/market-ticker";
 import { CategoryNav } from "@/components/zentry/category-nav";
 import { Footer } from "@/components/zentry/footer";
-import { ArticleCard, type ArticleCardData } from "@/components/zentry/article-card";
+import { ArticleCard } from "@/components/zentry/article-card";
 import { Badge } from "@/components/ui/badge";
 import {
-  DEMO_ARTICLES,
   DEMO_MARKET_TICKS,
   DEMO_VISITOR_COUNT,
 } from "@/lib/demo-data";
 import { fetchMarketTicks } from "@/lib/providers";
-import { CATEGORIES } from "@/lib/constants";
+import { CATEGORIES, CATEGORY_MAP } from "@/lib/constants";
+import { db } from "@/lib/db";
+import { toArticleCard, toArticleDetail } from "@/lib/article-mapper";
 import {
   articleJsonLd,
   breadcrumbJsonLd,
@@ -30,53 +31,75 @@ interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  return DEMO_ARTICLES.map((a) => ({ slug: a.slug }));
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const article = DEMO_ARTICLES.find((a) => a.slug === slug);
-  if (!article) return buildMetadata({ title: "Article not found" });
+  // Try DB first
+  const article = await db.article.findUnique({
+    where: { slug },
+    select: { title: true, excerpt: true, slug: true, coverImageUrl: true,
+             publishedAt: true, sourceName: true, aiSummary: true, status: true,
+             category: { select: { name: true, slug: true, color: true } } },
+  }).catch(() => null);
+
+  if (!article || article.status !== "PUBLISHED") {
+    return buildMetadata({ title: "Article not found" });
+  }
+
   return buildMetadata({
     title: article.title,
-    description: article.excerpt,
+    description: article.excerpt ?? article.aiSummary ?? undefined,
     path: `/article/${article.slug}`,
-    image: article.coverImageUrl,
+    image: article.coverImageUrl ?? undefined,
     type: "article",
-    publishedTime: new Date(article.publishedAt),
-    author: article.sourceName,
-    keywords: article.tags,
+    publishedTime: article.publishedAt ?? undefined,
+    author: article.sourceName ?? undefined,
   });
 }
 
 export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
-  const article = DEMO_ARTICLES.find((a) => a.slug === slug);
-  if (!article) notFound();
 
+  // Fetch article from DB with relations
+  const dbArticle = await db.article.findUnique({
+    where: { slug },
+    include: {
+      category: { select: { name: true, slug: true, color: true } },
+      tags: { select: { name: true, slug: true } },
+    },
+  }).catch(() => null);
+
+  if (!dbArticle || dbArticle.status !== "PUBLISHED") {
+    notFound();
+  }
+
+  // Increment view counter (best-effort, non-blocking)
+  db.article.update({
+    where: { id: dbArticle.id },
+    data: { views: { increment: 1 } },
+  }).catch(() => {});
+
+  const article = toArticleDetail(dbArticle);
+
+  // Fetch live ticks for ticker
   const ticks = await fetchMarketTicks().catch(() => DEMO_MARKET_TICKS);
 
-  const related = DEMO_ARTICLES
-    .filter((a) => a.id !== article.id && a.categorySlug === article.categorySlug)
-    .slice(0, 3);
+  // Find related articles in same category (excluding current)
+  const categorySlug = dbArticle.category?.slug ?? article.aiCategories?.[0] ?? "technology-ai";
+  const relatedDbArticles = await db.article.findMany({
+    where: {
+      status: "PUBLISHED",
+      id: { not: dbArticle.id },
+      OR: [
+        { category: { slug: categorySlug } },
+      ],
+    },
+    orderBy: { publishedAt: "desc" },
+    take: 3,
+    include: { category: { select: { name: true, slug: true, color: true } } },
+  }).catch(() => []);
 
-  const category = CATEGORIES.find((c) => c.slug === article.categorySlug);
-
-  const relatedCardData: ArticleCardData[] = related.map((a) => ({
-    id: a.id,
-    title: a.title,
-    slug: a.slug,
-    excerpt: a.excerpt,
-    categorySlug: a.categorySlug,
-    categoryName: a.categoryName,
-    categoryColor: a.categoryColor,
-    coverImageUrl: a.coverImageUrl,
-    coverImageAlt: a.coverImageAlt,
-    sourceName: a.sourceName,
-    publishedAt: a.publishedAt,
-    readingMinutes: a.readingMinutes,
-  }));
+  const related = relatedDbArticles.map(toArticleCard);
+  const category = CATEGORY_MAP[categorySlug] ?? CATEGORIES[0];
 
   return (
     <>
@@ -88,8 +111,8 @@ export default async function ArticlePage({ params }: PageProps) {
             description: article.excerpt,
             slug: article.slug,
             image: article.coverImageUrl,
-            datePublished: new Date(article.publishedAt),
-            dateModified: new Date(article.publishedAt),
+            datePublished: article.publishedAt,
+            dateModified: article.publishedAt,
             authorName: article.sourceName,
             categoryName: article.categoryName,
           })),
@@ -119,6 +142,7 @@ export default async function ArticlePage({ params }: PageProps) {
             </div>
 
             <article className="min-w-0">
+              {/* Breadcrumb */}
               <nav className="mb-4 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                 <Link href="/" className="hover:text-amber-glow">Home</Link>
                 <span>/</span>
@@ -172,14 +196,16 @@ export default async function ArticlePage({ params }: PageProps) {
                 )}
                 <span className="flex items-center gap-1">
                   <Clock size={12} />
-                  {new Date(article.publishedAt).toLocaleString("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
+                  {article.publishedAt
+                    ? new Date(article.publishedAt).toLocaleString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })
+                    : "Recently"}
                 </span>
                 <span>·</span>
                 <span>{article.readingMinutes} min read</span>
@@ -215,10 +241,12 @@ export default async function ArticlePage({ params }: PageProps) {
                 </div>
               )}
 
+              {/* Article body — rendered markdown */}
               <div className="prose-article text-foreground/90 leading-relaxed space-y-4 text-base">
                 {renderMarkdown(article.content)}
               </div>
 
+              {/* Tags */}
               {article.tags.length > 0 && (
                 <div className="mt-8 pt-6 border-t border-bronze/15">
                   <div className="flex items-center gap-2 mb-3">
@@ -251,14 +279,15 @@ export default async function ArticlePage({ params }: PageProps) {
             </article>
           </div>
 
-          {relatedCardData.length > 0 && (
+          {/* Related */}
+          {related.length > 0 && (
             <section className="mt-12 pt-8 border-t border-bronze/15">
               <h2 className="font-serif text-xl font-bold text-foreground mb-4 flex items-center gap-2">
                 <span className="w-1 h-5 rounded-full bg-gradient-to-b from-amber-glow to-bronze" />
                 More from {category?.name ?? "this section"}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {relatedCardData.map((a) => (
+                {related.map((a) => (
                   <ArticleCard key={a.id} article={a} variant="default" />
                 ))}
               </div>
@@ -272,6 +301,7 @@ export default async function ArticlePage({ params }: PageProps) {
   );
 }
 
+// Minimal, safe markdown renderer for article content.
 function renderMarkdown(content: string): React.ReactNode {
   const lines = content.split("\n");
   const blocks: React.ReactNode[] = [];

@@ -3,12 +3,14 @@ import { Search as SearchIcon, ArrowRight } from "lucide-react";
 import { Header } from "@/components/zentry/header";
 import { MarketTicker } from "@/components/zentry/market-ticker";
 import { CategoryNav } from "@/components/zentry/category-nav";
-import { ArticleCard, type ArticleCardData } from "@/components/zentry/article-card";
+import { ArticleCard } from "@/components/zentry/article-card";
 import { Footer } from "@/components/zentry/footer";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { DEMO_ARTICLES, DEMO_MARKET_TICKS, DEMO_VISITOR_COUNT } from "@/lib/demo-data";
-import { CATEGORIES } from "@/lib/constants";
+import { DEMO_MARKET_TICKS, DEMO_VISITOR_COUNT } from "@/lib/demo-data";
+import { fetchMarketTicks } from "@/lib/providers";
+import { db } from "@/lib/db";
+import { toArticleCard, publicArticleWhere } from "@/lib/article-mapper";
 import { buildMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 
@@ -27,42 +29,34 @@ interface PageProps {
 export default async function SearchPage({ searchParams }: PageProps) {
   const { q = "" } = await searchParams;
   const query = q.trim();
+  const ticks = await fetchMarketTicks().catch(() => DEMO_MARKET_TICKS);
 
-  let results: typeof DEMO_ARTICLES = [];
+  let results: Awaited<ReturnType<typeof toArticleCard>>[] = [];
   if (query) {
     const lower = query.toLowerCase();
-    results = DEMO_ARTICLES.filter((a) => {
-      const haystack = [
-        a.title,
-        a.excerpt,
-        a.content,
-        a.categoryName,
-        a.sourceName ?? "",
-        ...a.tags,
-      ].join(" ").toLowerCase();
-      return haystack.includes(lower);
-    });
+    // Search published articles by title, excerpt, content, source name, AI summary
+    const dbResults = await db.article.findMany({
+      where: {
+        ...publicArticleWhere(),
+        OR: [
+          { title: { contains: query, mode: "insensitive" } },
+          { excerpt: { contains: query, mode: "insensitive" } },
+          { content: { contains: query, mode: "insensitive" } },
+          { aiSummary: { contains: query, mode: "insensitive" } },
+          { sourceName: { contains: query, mode: "insensitive" } },
+        ],
+      },
+      orderBy: [{ publishedAt: "desc" }],
+      take: 50,
+      include: { category: { select: { name: true, slug: true, color: true } } },
+    }).catch(() => []);
+    results = dbResults.map(toArticleCard);
   }
-
-  const cardData: ArticleCardData[] = results.map((a) => ({
-    id: a.id,
-    title: a.title,
-    slug: a.slug,
-    excerpt: a.excerpt,
-    categorySlug: a.categorySlug,
-    categoryName: a.categoryName,
-    categoryColor: a.categoryColor,
-    coverImageUrl: a.coverImageUrl,
-    coverImageAlt: a.coverImageAlt,
-    sourceName: a.sourceName,
-    publishedAt: a.publishedAt,
-    readingMinutes: a.readingMinutes,
-  }));
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header visitorCount={DEMO_VISITOR_COUNT} />
-      <MarketTicker items={DEMO_MARKET_TICKS} />
+      <MarketTicker items={ticks} />
 
       <div className="mx-auto w-full max-w-[1600px] flex-1 px-4 lg:px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
@@ -140,7 +134,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {cardData.map((a, i) => (
+              {results.map((a, i) => (
                 <ArticleCard key={a.id} article={a} priority={i < 3} />
               ))}
             </div>
