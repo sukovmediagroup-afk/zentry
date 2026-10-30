@@ -88,7 +88,7 @@ export function Header({ visitorCount }: HeaderProps) {
           </Link>
 
           <Button asChild size="sm" variant="outline" className="h-8 sm:h-9 border-bronze/30 text-amber-glow hover:bg-bronze/10 hover:text-amber-glow hidden sm:inline-flex">
-            <Link href="/admin">Admin</Link>
+            <Link href="/admin" prefetch={false}>Admin</Link>
           </Button>
         </div>
       </div>

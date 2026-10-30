@@ -1,13 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
   reactStrictMode: true,
   // Hide framework fingerprint
   poweredByHeader: false,
-  // Enable instrumentation hook for env loading
   // Allow image optimization for stock-photo and partner CDNs.
-  // In production on Vercel, this enables the Image Optimization edge network.
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
