@@ -1,0 +1,18 @@
+{
+  "name": "ARENA USA — AI-Powered American Media",
+  "short_name": "ARENA USA",
+  "description": "AI-powered American digital media platform. Trending news, finance, technology, lifestyle, and culture — curated by AI agents and reviewed by editors.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1c1410",
+  "theme_color": "#c98a4b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

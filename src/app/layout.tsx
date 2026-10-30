@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { PROJECT_DEFAULTS } from "@/lib/constants";
 import { buildMetadata } from "@/lib/seo";
 
 const geistSans = Geist({
@@ -23,7 +22,22 @@ const serif = Newsreader({
   display: "swap",
 });
 
-export const metadata: Metadata = buildMetadata({});
+export const metadata: Metadata = {
+  ...buildMetadata({}),
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: ["/icon.svg"],
+    apple: [{ url: "/icon.svg" }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "ARENA USA",
+  },
+};
 
 export const viewport: Viewport = {
   themeColor: [

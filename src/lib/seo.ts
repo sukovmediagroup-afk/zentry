@@ -13,7 +13,8 @@ export function slugify(input: string): string {
 }
 
 export function absoluteUrl(path: string): string {
-  const base = PROJECT_DEFAULTS.siteUrl.replace(/\/$/, "");
+  // Prefer runtime env var (set on Vercel), fall back to defaults
+  const base = (process.env.NEXT_PUBLIC_SITE_URL || PROJECT_DEFAULTS.siteUrl).replace(/\/$/, "");
   const p = path.startsWith("/") ? path : `/${path}`;
   return `${base}${p}`;
 }
@@ -52,7 +53,7 @@ export function buildMetadata(opts: {
     : `${PROJECT_DEFAULTS.siteName} — AI-Powered American Media`;
   const description = opts.description ?? PROJECT_DEFAULTS.siteDescription;
   const url = absoluteUrl(opts.path ?? "/");
-  const image = opts.image ?? absoluteUrl("/og-default.png");
+  const image = opts.image ?? absoluteUrl("/icon.svg");
 
   return {
     title,

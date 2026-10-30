@@ -1,0 +1,3 @@
+{
+  "/api/agent/summarize/route": "app/api/agent/summarize/route.js"
+}
