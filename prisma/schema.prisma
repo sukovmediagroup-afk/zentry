@@ -1,0 +1,412 @@
+// Zentry (ARENA USA Technology) — Mass Media Platform
+// Prisma schema. SQLite for local dev; in production point DATABASE_URL to PostgreSQL
+// (Prisma ORM makes the swap a one-line change — no app code changes needed).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ────────────────────────────────────────────────────────────
+//  USERS, ROLES & SESSIONS
+// ────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @default("ADMIN") // ADMIN | EDITOR | AUTHOR
+  avatarUrl    String?
+  bio          String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  apiKeys      ApiKey[]
+  agentRuns    AgentRun[]
+  articles     Article[]   @relation("ArticleAuthor")
+  auditLogs    AuditLog[]
+  sessions     Session[]
+  passwordResets PasswordReset[]
+
+  @@index([email])
+}
+
+model PasswordReset {
+  id           String   @id @default(cuid())
+  userId       String
+  tokenHash    String   @unique
+  expiresAt    DateTime
+  usedAt       DateTime?
+  ip           String?
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  tokenHash    String   @unique  // SHA-256 of token — never store the raw token
+  expiresAt    DateTime
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String   // e.g. ARTICLE_PUBLISH, API_KEY_CREATE
+  entity    String?
+  entityId  String?
+  metadata  String?  // JSON string
+  ip        String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ────────────────────────────────────────────────────────────
+//  CONTENT TAXONOMY
+// ────────────────────────────────────────────────────────────
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+  icon        String?    // lucide icon name
+  color       String?    // accent hex
+  parentId    String?
+  order       Int        @default(0)
+  isFeatured  Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryHierarchy")
+  articles    Article[]
+  sources     Source[]
+  telegram    TelegramDestination[]
+  pinterest   PinterestBoard[]
+
+  @@index([slug])
+  @@index([parentId])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+
+  articles  Article[]
+}
+
+// ────────────────────────────────────────────────────────────
+//  ARTICLES
+// ────────────────────────────────────────────────────────────
+
+model Article {
+  id              String   @id @default(cuid())
+  title           String
+  slug            String   @unique
+  excerpt         String?
+  content         String   // markdown / MDX body
+  coverImageUrl   String?
+  coverImageAlt   String?
+
+  status          String   @default("DRAFT") // DRAFT | PENDING | PUBLISHED | ARCHIVED | REJECTED
+  featured        Boolean  @default(false)
+  isBreaking      Boolean  @default(false)
+  keepForever     Boolean  @default(false)   // admin "Leave forever" flag
+  views           Int      @default(0)
+  readingMinutes  Int      @default(1)
+
+  // SEO
+  metaTitle        String?
+  metaDescription  String?
+  canonicalUrl     String?
+  ogImageUrl       String?
+  keywords         String? // comma separated
+
+  // Provenance
+  sourceId         String?
+  sourceName       String?
+  sourceUrl        String?  // internal, never shown publicly unless allowed
+  sourcePublishedAt DateTime?
+  contentHash      String?  // dedup key
+  retrievedAt      DateTime?
+
+  // AI processing
+  aiSummary        String?
+  aiConfidence     Float?
+  aiCategories     String?  // JSON array of suggested category ids
+  sensitivityFlags String?  // JSON array
+  moderationNotes  String?
+
+  // Relationships
+  authorId         String?
+  author           User?     @relation("ArticleAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  categoryId       String?
+  category         Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags             Tag[]
+
+  // Lifecycle timestamps (UTC)
+  publishedAt      DateTime?
+  expiresAt        DateTime? // publishedAt + 48h unless keepForever
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  deliveryJobs     PublicationJob[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([categoryId])
+  @@index([publishedAt])
+  @@index([expiresAt])
+  @@index([contentHash])
+  @@index([keepForever])
+}
+
+// ────────────────────────────────────────────────────────────
+//  SOURCES (RSS / API registry)
+// ────────────────────────────────────────────────────────────
+
+model Source {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  type            String   @default("RSS") // RSS | API | MOCK
+  url             String
+  homepageUrl     String?
+  pollIntervalSec Int      @default(600)
+  enabled         Boolean  @default(true)
+  rateLimitPerMin Int      @default(30)
+  lastPolledAt    DateTime?
+  lastSuccessAt   DateTime?
+  lastError       String?
+  lastErrorAt     DateTime?
+  totalIngested   Int      @default(0)
+  categoryId      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  category        Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([slug])
+  @@index([enabled])
+}
+
+// ────────────────────────────────────────────────────────────
+//  API KEYS (admin-controlled, for third-party parsers)
+// ────────────────────────────────────────────────────────────
+
+model ApiKey {
+  id           String   @id @default(cuid())
+  name         String   // human-friendly label, e.g. "Parser-bot-1"
+  keyHash      String   @unique // sha256 hash; raw key shown once at creation
+  keyPrefix    String   // first 8 chars for display
+  scopes       String   @default("ingest") // space-separated: ingest | read | admin
+  rateLimitPerMin Int   @default(60)
+  enabled      Boolean  @default(true)
+  lastUsedAt   DateTime?
+  totalCalls   Int      @default(0)
+  ownerId      String?
+  owner        User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([keyHash])
+  @@index([enabled])
+}
+
+// ────────────────────────────────────────────────────────────
+//  AI AGENTS (TypeScript Edge Runtime — replacement for Python bots)
+// ────────────────────────────────────────────────────────────
+
+model AgentRun {
+  id           String   @id @default(cuid())
+  agentType    String   // summarize | classify | dedupe | factcheck | editorial
+  status       String   @default("PENDING") // PENDING | RUNNING | SUCCESS | FAILED | DEAD_LETTER
+  input        String   // JSON
+  output       String?  // JSON
+  errorMessage String?
+  attempts     Int      @default(0)
+  nextRetryAt  DateTime?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  durationMs   Int?
+  triggeredBy  String?  // user id or "scheduler"
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([agentType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ────────────────────────────────────────────────────────────
+//  SOCIAL DISTRIBUTION (Telegram & Pinterest)
+// ────────────────────────────────────────────────────────────
+
+model TelegramDestination {
+  id           String   @id @default(cuid())
+  name         String
+  botTokenRef  String   // secret name (e.g. "TELEGRAM_BOT_1_TOKEN") — never raw token
+  chatId       String
+  categoryId   String?
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+}
+
+model PinterestBoard {
+  id           String   @id @default(cuid())
+  name         String
+  boardId      String
+  apiTokenRef  String   // secret name
+  categoryId   String?
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+}
+
+model PublicationJob {
+  id           String   @id @default(cuid())
+  articleId    String
+  destination  String   // telegram:<destId> | pinterest:<boardId>
+  destinationId String
+  status       String   @default("PENDING") // PENDING | PROCESSING | SUCCESS | FAILED | DEAD_LETTER
+  externalId   String?  // telegram message id / pinterest pin id
+  attempts     Int      @default(0)
+  maxAttempts  Int      @default(5)
+  nextRetryAt  DateTime?
+  lastError    String?
+  payload      String?  // JSON request snapshot
+  response     String?  // JSON response snapshot
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  article      Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, destinationId])
+  @@index([status])
+  @@index([destinationId])
+}
+
+// ────────────────────────────────────────────────────────────
+//  SIDEBAR PROVIDERS: MARKET DATA, WEATHER, EVENTS
+// ────────────────────────────────────────────────────────────
+
+model MarketTick {
+  id        String   @id @default(cuid())
+  symbol    String   @unique // BTC, ETH, EURUSD, OIL, etc.
+  name      String
+  price     Float
+  change24h Float?
+  currency  String   @default("USD")
+  updatedAt DateTime @default(now())
+
+  @@index([symbol])
+}
+
+model WeatherCache {
+  id        String   @id @default(cuid())
+  location  String   @unique // "New York, NY"
+  payload   String   // JSON forecast
+  updatedAt DateTime @default(now())
+}
+
+model HoroscopeCache {
+  id        String   @id @default(cuid())
+  sign      String   @unique
+  payload   String   // JSON
+  updatedAt DateTime @default(now())
+}
+
+model UsEvent {
+  id        String   @id @default(cuid())
+  date      String   // YYYY-MM-DD
+  name      String
+  type      String   // federal_holiday | observance | event
+  description String?
+  @@index([date])
+}
+
+// ────────────────────────────────────────────────────────────
+//  MONETIZATION: ADS & DONATIONS
+// ────────────────────────────────────────────────────────────
+
+model AdCampaign {
+  id           String   @id @default(cuid())
+  name         String
+  advertiser  String
+  format       String   // sidebar | in_feed | header_banner
+  imageUrl     String?
+  targetUrl    String
+  startAt      DateTime
+  endAt        DateTime
+  priceUsd     Float
+  paid         Boolean  @default(false)
+  status       String   @default("PENDING") // PENDING | APPROVED | LIVE | ENDED | REJECTED
+  categoryId   String?
+  impressions  Int      @default(0)
+  clicks       Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DonationAddress {
+  id        String   @id @default(cuid())
+  coin      String   // BTC | ETH | USDT | USDC
+  network   String   // mainnet | ERC20 | TRC20 | BEP20
+  address   String
+  qrUrl     String?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// ────────────────────────────────────────────────────────────
+//  REAL-TIME VISITOR COUNTER
+// ────────────────────────────────────────────────────────────
+
+model VisitorSession {
+  id           String   @id @default(cuid())
+  sessionId    String   @unique
+  ip           String?
+  userAgent    String?
+  country      String?
+  path         String?
+  lastSeenAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([lastSeenAt])
+}
