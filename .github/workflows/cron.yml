@@ -1,0 +1,86 @@
+# ARENA USA — Hourly cron via GitHub Actions.
+#
+# Vercel Hobby plan only supports 1 daily cron job. To poll RSS sources
+# every hour, we use GitHub Actions scheduled workflow (free for public repos).
+#
+# The workflow triggers /api/cron/poll and /api/cron/distribute with the
+# CRON_SECRET — no additional infrastructure needed.
+#
+# Schedule:
+#   - Poll RSS sources + archive old: every hour at :05
+#   - Process social distribution jobs: every hour at :35
+#
+# To enable: add CRON_SECRET as a GitHub Actions secret in repo settings.
+# To change frequency: edit the `cron:` lines below.
+
+name: Hourly Cron
+
+on:
+  schedule:
+    # Every hour at :05 UTC — RSS poll + archive
+    - cron: '5 * * * *'
+    # Every hour at :35 UTC — social distribution
+    - cron: '35 * * * *'
+  # Allow manual trigger from Actions tab
+  workflow_dispatch:
+    inputs:
+      endpoint:
+        description: 'Which endpoint to call (poll | distribute)'
+        required: true
+        default: 'poll'
+        type: choice
+        options:
+          - poll
+          - distribute
+
+jobs:
+  cron:
+    name: Trigger ARENA USA cron endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Determine endpoint
+        id: endpoint
+        run: |
+          # Determine which endpoint based on minute of the hour
+          MINUTE=$(date -u +%M)
+          if [ "${{ github.event.inputs.endpoint }}" != "" ]; then
+            ENDPOINT="${{ github.event.inputs.endpoint }}"
+          elif [ "$MINUTE" = "05" ]; then
+            ENDPOINT="poll"
+          elif [ "$MINUTE" = "35" ]; then
+            ENDPOINT="distribute"
+          else
+            ENDPOINT="poll"
+          fi
+          echo "endpoint=$ENDPOINT" >> $GITHUB_OUTPUT
+          echo "Calling endpoint: $ENDPOINT"
+
+      - name: Call ARENA USA cron endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://zentry-rust.vercel.app' }}
+        run: |
+          ENDPOINT="${{ steps.endpoint.outputs.endpoint }}"
+          URL="${SITE_URL}/api/cron/${ENDPOINT}"
+
+          echo "Calling: $URL"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X GET \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "User-Agent: GitHub-Actions-Cron/1.0" \
+            --max-time 60 \
+            "$URL")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          echo "HTTP status: $HTTP_CODE"
+          echo "Response body: $BODY"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Cron endpoint failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "✅ Cron endpoint succeeded"
