@@ -90,3 +90,4 @@ mini-services/
 # OS
 .DS_Store
 desktop.ini
+.neon
