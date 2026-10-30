@@ -1,2 +1,92 @@
-skills/
+# ────────────────────────────────────────────────────────────
+#  ARENA USA — .gitignore
+#  Never commit secrets, env files, or build artifacts.
+# ────────────────────────────────────────────────────────────
+
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Testing
+coverage/
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Production
+*.tsbuildinfo
+next-env.d.ts
+
+# Misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Environment files (NEVER commit secrets)
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+!.env.example
+
+# Vercel
+.vercel
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+db/
+prisma/migrations/dev.db*
+
+# Logs
+*.log
+logs/
+dev.log
+server.log
+
+# Scripts / sandbox artifacts
+.zscripts/
+upload/
+download/
+tests/screenshots/
+tool-results/
+
+# Skills (development-only modules, not part of the public project)
+skills/
+
+# Examples (skill demos, not part of the public project)
+examples/
+
+# Mini-services (separate deployable services, tracked separately if needed)
+mini-services/
+
+# OS
+.DS_Store
+desktop.ini
