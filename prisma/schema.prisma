@@ -11,6 +11,10 @@
 //
 // Set DATABASE_URL="postgresql://user:pass@host:5432/dbname?sslmode=require"
 // in .env, then run: bun run db:push && bun run scripts/seed.ts
+//
+// NOTE: url is set to env("DATABASE_URL") but at runtime in Next.js dev
+// (Turbopack) we override it via `datasources: { db: { url } }` in db.ts.
+// This is because Turbopack sometimes fails to expose env vars to Prisma.
 
 generator client {
   provider = "prisma-client-js"
