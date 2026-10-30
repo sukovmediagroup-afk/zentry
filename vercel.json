@@ -3,11 +3,13 @@
   "crons": [
     {
       "path": "/api/cron/poll",
-      "schedule": "*/10 * * * *"
+      "comment": "Daily RSS poll + archive cleanup (Hobby plan: 1 cron/day max). Pro plan: change to '*/10 * * * *'",
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/distribute",
-      "schedule": "*/5 * * * *"
+      "comment": "Daily social distribution job (Hobby plan: 1 cron/day max). Pro plan: change to '*/5 * * * *'",
+      "schedule": "30 0 * * *"
     }
   ],
   "functions": {
