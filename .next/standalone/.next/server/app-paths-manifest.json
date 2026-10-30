@@ -37,6 +37,7 @@
   "/category/[slug]/page": "app/category/[slug]/page.js",
   "/icon.svg/route": "app/icon.svg/route.js",
   "/page": "app/page.js",
+  "/privacy/page": "app/privacy/page.js",
   "/robots.txt/route": "app/robots.txt/route.js",
   "/rss.xml/route": "app/rss.xml/route.js",
   "/search/page": "app/search/page.js",

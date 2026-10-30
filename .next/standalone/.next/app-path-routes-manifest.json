@@ -37,6 +37,7 @@
   "/category/[slug]/page": "/category/[slug]",
   "/icon.svg/route": "/icon.svg",
   "/page": "/",
+  "/privacy/page": "/privacy",
   "/robots.txt/route": "/robots.txt",
   "/rss.xml/route": "/rss.xml",
   "/search/page": "/search",

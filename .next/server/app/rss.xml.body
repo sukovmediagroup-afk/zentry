@@ -6,13 +6,13 @@
     <description>ARENA USA is an AI-powered American digital media platform. Trending news, finance, technology, lifestyle, and culture — curated by AI agents and reviewed by editors.</description>
     <language>en-US</language>
     <atom:link href="https://zentry-rust.vercel.app/rss.xml" rel="self" type="application/rss+xml" />
-    <lastBuildDate>Fri, 30 Oct 2026 09:25:06 GMT</lastBuildDate>
+    <lastBuildDate>Fri, 30 Oct 2026 10:00:13 GMT</lastBuildDate>
     <ttl>10</ttl>
     <item>
       <title>Federal Reserve Holds Rates Steady as Inflation Cools to 2.4%</title>
       <link>https://zentry-rust.vercel.app/article/federal-reserve-holds-rates-steady-inflation-cools</link>
       <guid isPermaLink="true">https://zentry-rust.vercel.app/article/federal-reserve-holds-rates-steady-inflation-cools</guid>
-      <pubDate>Fri, 30 Oct 2026 07:25:02 GMT</pubDate>
+      <pubDate>Fri, 30 Oct 2026 08:00:08 GMT</pubDate>
       <description>The Federal Open Market Committee voted unanimously to maintain the federal funds rate at 4.50–4.75%, citing cooling inflation and a resilient labor market.</description>
       <category>Investing &amp; Banking</category>
       <dc:creator>Federal Reserve Press Release</dc:creator>
@@ -21,7 +21,7 @@
       <title>OpenAI Launches New Reasoning Model With 50% Lower Latency</title>
       <link>https://zentry-rust.vercel.app/article/openai-launches-new-reasoning-model-50-percent-lower-latency</link>
       <guid isPermaLink="true">https://zentry-rust.vercel.app/article/openai-launches-new-reasoning-model-50-percent-lower-latency</guid>
-      <pubDate>Fri, 30 Oct 2026 04:25:02 GMT</pubDate>
+      <pubDate>Fri, 30 Oct 2026 05:00:08 GMT</pubDate>
       <description>The new o-series model reduces median response time from 8.4 seconds to 4.1 seconds while improving accuracy on graduate-level reasoning benchmarks.</description>
       <category>Technology &amp; AI</category>
       <dc:creator>OpenAI Newsroom</dc:creator>
@@ -30,7 +30,7 @@
       <title>Tesla Delivers Record 521,000 Vehicles in Q3, Beats Expectations</title>
       <link>https://zentry-rust.vercel.app/article/tesla-delivers-record-521000-vehicles-q3-beats-expectations</link>
       <guid isPermaLink="true">https://zentry-rust.vercel.app/article/tesla-delivers-record-521000-vehicles-q3-beats-expectations</guid>
-      <pubDate>Fri, 30 Oct 2026 01:25:02 GMT</pubDate>
+      <pubDate>Fri, 30 Oct 2026 02:00:08 GMT</pubDate>
       <description>Tesla reported 521,000 vehicle deliveries in the third quarter, exceeding analyst estimates of 487,000 and setting a new quarterly record.</description>
       <category>Investing &amp; Banking</category>
       <dc:creator>Tesla Investor Relations</dc:creator>
@@ -39,7 +39,7 @@
       <title>Senate Passes Bipartisan Infrastructure Bill Focused on EV Charging</title>
       <link>https://zentry-rust.vercel.app/article/senate-passes-bipartisan-infrastructure-bill-ev-charging</link>
       <guid isPermaLink="true">https://zentry-rust.vercel.app/article/senate-passes-bipartisan-infrastructure-bill-ev-charging</guid>
-      <pubDate>Thu, 29 Oct 2026 22:25:02 GMT</pubDate>
+      <pubDate>Thu, 29 Oct 2026 23:00:08 GMT</pubDate>
       <description>The $14.2 billion bill would fund 500,000 public EV charging stations nationwide, with a focus on rural and underserved areas.</description>
       <category>Politics</category>
       <dc:creator>Senate Press Gallery</dc:creator>
@@ -48,7 +48,7 @@
       <title>10 Remote Work Skills That Will Define 2026</title>
       <link>https://zentry-rust.vercel.app/article/10-remote-work-skills-that-will-define-2026</link>
       <guid isPermaLink="true">https://zentry-rust.vercel.app/article/10-remote-work-skills-that-will-define-2026</guid>
-      <pubDate>Thu, 29 Oct 2026 19:25:02 GMT</pubDate>
+      <pubDate>Thu, 29 Oct 2026 20:00:08 GMT</pubDate>
       <description>From async communication to AI literacy, here are the skills employers say they will prioritize in remote hiring decisions next year.</description>
       <category>Careers &amp; Learning</category>
       <dc:creator>ARENA USA Editorial</dc:creator>
@@ -57,7 +57,7 @@
       <title>How to Build a $1,000 Emergency Fund on a Tight Budget</title>
       <link>https://zentry-rust.vercel.app/article/how-to-build-1000-emergency-fund-on-tight-budget</link>
       <guid isPermaLink="true">https://zentry-rust.vercel.app/article/how-to-build-1000-emergency-fund-on-tight-budget</guid>
-      <pubDate>Thu, 29 Oct 2026 15:25:02 GMT</pubDate>
+      <pubDate>Thu, 29 Oct 2026 16:00:08 GMT</pubDate>
       <description>A practical, step-by-step plan for building your first $1,000 emergency cushion — even if you&apos;re starting from zero.</description>
       <category>Personal Finance</category>
       <dc:creator>ARENA USA Editorial</dc:creator>
@@ -66,7 +66,7 @@
       <title>Yosemite National Park Reopens Tioga Road After Record Snowpack</title>
       <link>https://zentry-rust.vercel.app/article/yosemite-reopens-tioga-road-after-record-snowpack</link>
       <guid isPermaLink="true">https://zentry-rust.vercel.app/article/yosemite-reopens-tioga-road-after-record-snowpack</guid>
-      <pubDate>Thu, 29 Oct 2026 11:25:02 GMT</pubDate>
+      <pubDate>Thu, 29 Oct 2026 12:00:08 GMT</pubDate>
       <description>The iconic high-elevation highway through Yosemite&apos;s backcountry reopened this weekend, two weeks later than usual after one of the snowiest winters on record.</description>
       <category>Travel in the USA</category>
       <dc:creator>National Park Service</dc:creator>
@@ -75,7 +75,7 @@
       <title>5-Minute Morning Yoga Routine for Better Posture</title>
       <link>https://zentry-rust.vercel.app/article/5-minute-morning-yoga-routine-better-posture</link>
       <guid isPermaLink="true">https://zentry-rust.vercel.app/article/5-minute-morning-yoga-routine-better-posture</guid>
-      <pubDate>Thu, 29 Oct 2026 05:25:02 GMT</pubDate>
+      <pubDate>Thu, 29 Oct 2026 06:00:08 GMT</pubDate>
       <description>A short, beginner-friendly sequence to undo the damage of desk work and screen time — no equipment required.</description>
       <category>Health &amp; Wellness</category>
       <dc:creator>ARENA USA Editorial</dc:creator>
@@ -84,7 +84,7 @@
       <title>Best Smart Thermostats of 2026: Tested and Reviewed</title>
       <link>https://zentry-rust.vercel.app/article/best-smart-thermostats-of-2026-tested-reviewed</link>
       <guid isPermaLink="true">https://zentry-rust.vercel.app/article/best-smart-thermostats-of-2026-tested-reviewed</guid>
-      <pubDate>Wed, 28 Oct 2026 23:25:02 GMT</pubDate>
+      <pubDate>Thu, 29 Oct 2026 00:00:08 GMT</pubDate>
       <description>After testing nine leading models over six months, here are the three that delivered the best combination of energy savings, ease of use, and integration.</description>
       <category>Electronics &amp; Gadgets</category>
       <dc:creator>ARENA USA Reviews</dc:creator>
@@ -93,7 +93,7 @@
       <title>Quick 20-Minute Sheet Pan Salmon With Roasted Vegetables</title>
       <link>https://zentry-rust.vercel.app/article/quick-20-minute-sheet-pan-salmon-roasted-vegetables</link>
       <guid isPermaLink="true">https://zentry-rust.vercel.app/article/quick-20-minute-sheet-pan-salmon-roasted-vegetables</guid>
-      <pubDate>Wed, 28 Oct 2026 17:25:02 GMT</pubDate>
+      <pubDate>Wed, 28 Oct 2026 18:00:08 GMT</pubDate>
       <description>A complete, healthy dinner on one pan. Six ingredients, twenty minutes, minimal cleanup — perfect for busy weeknights.</description>
       <category>Food &amp; Nutrition</category>
       <dc:creator>ARENA USA Kitchen</dc:creator>
@@ -102,7 +102,7 @@
       <title>Memorial Day 2026: Federal Holiday Schedule and Closures</title>
       <link>https://zentry-rust.vercel.app/article/memorial-day-2026-federal-holiday-schedule-closures</link>
       <guid isPermaLink="true">https://zentry-rust.vercel.app/article/memorial-day-2026-federal-holiday-schedule-closures</guid>
-      <pubDate>Wed, 28 Oct 2026 11:25:02 GMT</pubDate>
+      <pubDate>Wed, 28 Oct 2026 12:00:08 GMT</pubDate>
       <description>Memorial Day falls on May 25, 2026. Here&apos;s what&apos;s open, what&apos;s closed, and what to expect for travel and shipping.</description>
       <category>US Holidays &amp; Events</category>
       <dc:creator>U.S. Office of Personnel Management</dc:creator>
