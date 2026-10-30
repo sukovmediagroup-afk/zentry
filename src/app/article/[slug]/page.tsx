@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Clock, ExternalLink, Pin, Flame, Tag as TagIcon } from "lucide-react";
 import { Header } from "@/components/zentry/header";
@@ -7,6 +6,7 @@ import { MarketTicker } from "@/components/zentry/market-ticker";
 import { CategoryNav } from "@/components/zentry/category-nav";
 import { Footer } from "@/components/zentry/footer";
 import { ArticleCard } from "@/components/zentry/article-card";
+import { SafeImage } from "@/components/zentry/safe-image";
 import { Badge } from "@/components/ui/badge";
 import {
   DEMO_MARKET_TICKS,
@@ -218,7 +218,7 @@ export default async function ArticlePage({ params }: PageProps) {
 
               {article.coverImageUrl && (
                 <div className="relative aspect-[16/9] rounded-xl overflow-hidden mb-6 border border-bronze/15">
-                  <Image
+                  <SafeImage
                     src={article.coverImageUrl}
                     alt={article.coverImageAlt ?? article.title}
                     fill

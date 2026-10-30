@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
+import { SafeImage } from "@/components/zentry/safe-image";
 import { Clock, Flame, Pin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_MAP } from "@/lib/constants";
@@ -54,18 +54,14 @@ export function ArticleCard({ article, variant = "default", priority }: ArticleC
         className="arena-card-hover group relative block overflow-hidden rounded-xl border border-bronze/15 bg-graphite/40"
       >
         <div className="relative aspect-[16/9] overflow-hidden">
-          {article.coverImageUrl ? (
-            <Image
-              src={article.coverImageUrl}
-              alt={article.coverImageAlt ?? article.title}
-              fill
-              priority={priority}
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 66vw, 800px"
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
-            />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-graphite to-espresso" />
-          )}
+          <SafeImage
+            src={article.coverImageUrl}
+            alt={article.coverImageAlt ?? article.title}
+            fill
+            priority={priority}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 66vw, 800px"
+            className="object-cover transition-transform duration-700 group-hover:scale-105"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-espresso via-espresso/40 to-transparent" />
           <div className="absolute top-3 left-3 flex items-center gap-2">
             <CategoryBadge name={article.categoryName} color={article.categoryColor} />
@@ -101,15 +97,13 @@ export function ArticleCard({ article, variant = "default", priority }: ArticleC
     return (
       <Link href={href} className="arena-card-hover group flex gap-3 p-2 rounded-lg hover:bg-graphite/40 transition-colors">
         <div className="relative w-20 h-20 shrink-0 rounded-md overflow-hidden bg-graphite">
-          {article.coverImageUrl && (
-            <Image
-              src={article.coverImageUrl}
-              alt={article.coverImageAlt ?? article.title}
-              fill
-              sizes="80px"
-              className="object-cover transition-transform duration-500 group-hover:scale-110"
-            />
-          )}
+          <SafeImage
+            src={article.coverImageUrl}
+            alt={article.coverImageAlt ?? article.title}
+            fill
+            sizes="80px"
+            className="object-cover transition-transform duration-500 group-hover:scale-110"
+          />
         </div>
         <div className="min-w-0 flex-1">
           <div
@@ -174,18 +168,14 @@ export function ArticleCard({ article, variant = "default", priority }: ArticleC
       className="arena-card-hover group flex flex-col overflow-hidden rounded-xl border border-bronze/15 bg-graphite/40"
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-graphite">
-        {article.coverImageUrl ? (
-          <Image
-            src={article.coverImageUrl}
-            alt={article.coverImageAlt ?? article.title}
-            fill
-            priority={priority}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-graphite to-espresso" />
-        )}
+        <SafeImage
+          src={article.coverImageUrl}
+          alt={article.coverImageAlt ?? article.title}
+          fill
+          priority={priority}
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          className="object-cover transition-transform duration-700 group-hover:scale-105"
+        />
         <div className="absolute top-3 left-3 flex flex-wrap gap-2">
           <CategoryBadge name={article.categoryName} color={article.categoryColor} />
           {article.isBreaking && (
