@@ -133,7 +133,7 @@ export default async function ArticlePage({ params }: PageProps) {
         <Header visitorCount={DEMO_VISITOR_COUNT} />
         <MarketTicker items={ticks} />
 
-        <div className="mx-auto w-full max-w-[1600px] flex-1 px-4 lg:px-6 py-6">
+        <div className="mx-auto w-full max-w-[1600px] flex-1 px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
           <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
             <div className="hidden lg:block">
               <div className="sticky top-20">
@@ -179,11 +179,11 @@ export default async function ArticlePage({ params }: PageProps) {
                 )}
               </Link>
 
-              <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground leading-[1.1] mb-4">
+              <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground leading-[1.1] mb-4">
                 {article.title}
               </h1>
 
-              <p className="text-lg text-muted-foreground leading-relaxed mb-5">
+              <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-5">
                 {article.excerpt}
               </p>
 

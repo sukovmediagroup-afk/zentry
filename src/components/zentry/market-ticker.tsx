@@ -18,14 +18,14 @@ function formatPrice(value: number): string {
 function TickerPill({ item }: { item: TickerItem }) {
   const up = (item.change24h ?? 0) >= 0;
   return (
-    <div className="flex items-center gap-2 px-4 py-1.5 border-r border-bronze/10 shrink-0">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-glow">
+    <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 border-r border-bronze/10 shrink-0">
+      <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide text-amber-glow">
         {item.symbol}
       </span>
       <span className="text-xs text-foreground/90 tabular-nums">
         {item.currency === "USD" ? "$" : ""}{formatPrice(item.price)}
       </span>
-      <span className={`flex items-center gap-0.5 text-[11px] tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
+      <span className={`flex items-center gap-0.5 text-[10px] sm:text-[11px] tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
         {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
         {up ? "+" : ""}{item.change24h?.toFixed(2)}%
       </span>

@@ -9,19 +9,18 @@ import { RightSidebar } from "@/components/zentry/right-sidebar";
 import { Footer } from "@/components/zentry/footer";
 import {
   DEMO_MARKET_TICKS,
-  DEMO_WEATHER,
-  DEMO_HOROSCOPES,
-  DEMO_US_EVENTS,
   DEMO_VISITOR_COUNT,
 } from "@/lib/demo-data";
-import { fetchMarketTicks, fetchWeather, fetchUsEvents, fetchHoroscope } from "@/lib/providers";
+import { fetchMarketTicks, fetchWeather, fetchUsEvents } from "@/lib/providers";
 import { CATEGORIES, CATEGORY_MAP, ZODIAC_SIGNS } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { toArticleCard, publicArticleWhere } from "@/lib/article-mapper";
 import { buildMetadata, breadcrumbJsonLd, safeJsonLd } from "@/lib/seo";
 import type { Metadata } from "next";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
+export const revalidate = 300;
+export const fetchCache = "force-cache";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -46,42 +45,50 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   const category = CATEGORY_MAP[slug];
   if (!category) notFound();
 
-  // Fetch live data in parallel
-  const [liveTicks, weather, usEvents] = await Promise.all([
+  // Fetch live data in parallel — single batch (was 4 + 12 horoscope queries)
+  const [liveTicks, weather, usEvents, dbArticles, horoscopeRows] = await Promise.all([
     fetchMarketTicks(),
     fetchWeather(),
     fetchUsEvents(),
+    db.article.findMany({
+      where: {
+        ...publicArticleWhere(),
+        category: { slug: category.slug },
+      },
+      orderBy: [{ isBreaking: "desc" }, { publishedAt: "desc" }],
+      take: 30,
+      include: { category: { select: { name: true, slug: true, color: true } } },
+    }),
+    db.horoscopeCache.findMany({ select: { sign: true, payload: true, updatedAt: true } }),
   ]);
   const ticks = liveTicks.length > 0 ? liveTicks : DEMO_MARKET_TICKS;
 
-  // Build horoscopes (cached by sign, refreshed daily)
-  const horoscopes = await Promise.all(
-    ZODIAC_SIGNS.map(async (sign) => ({ sign, text: await fetchHoroscope(sign) })),
-  );
+  // Build horoscopes from single batch query
+  const horoscopes = ZODIAC_SIGNS.map((sign) => {
+    const row = horoscopeRows.find((r) => r.sign === sign);
+    let text = "";
+    if (row) {
+      try { text = JSON.parse(row.payload)?.text ?? ""; } catch {}
+    }
+    if (!text) {
+      const seed = (sign + new Date().toDateString()).split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      const texts = ["A creative breakthrough arrives today.", "Curiosity opens an unexpected door.", "Patience is rewarded.", "Listen to your body.", "Energy returns.", "Small actions compound.", "A boundary is correct.", "Rest is productive.", "An old friend resurfaces.", "Financial clarity comes.", "A piece of news reframes.", "Conversation simplifies things."];
+      text = texts[seed % texts.length];
+    }
+    return { sign, text };
+  });
 
-  // Fetch articles from DB for this category
-  let dbArticles = await db.article.findMany({
-    where: {
-      ...publicArticleWhere(),
-      category: { slug: category.slug },
-    },
-    orderBy: [{ isBreaking: "desc" }, { publishedAt: "desc" }],
-    take: 50,
-    include: { category: { select: { name: true, slug: true, color: true } } },
-  }).catch(() => []);
-
-  // If sub-category filter is set, filter by tag (article.tags contains sub string)
+  // Filter by sub if provided
+  let filteredArticles = dbArticles;
   if (sub) {
-    dbArticles = dbArticles.filter((a) => {
-      // We don't fetch tags in this query — fall back to aiCategories field
-      const aiCats = a.aiCategories ? safeParse(a.aiCategories) : [];
-      // Simple substring match against excerpt/content for now
-      const lower = (a.title + " " + (a.excerpt ?? "")).toLowerCase();
-      return lower.includes(sub.toLowerCase());
+    const lower = sub.toLowerCase();
+    filteredArticles = dbArticles.filter((a) => {
+      const text = (a.title + " " + (a.excerpt ?? "")).toLowerCase();
+      return text.includes(lower);
     });
   }
 
-  const cardData = dbArticles.map(toArticleCard);
+  const cardData = filteredArticles.map(toArticleCard);
 
   return (
     <>
@@ -99,7 +106,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
         <Header visitorCount={DEMO_VISITOR_COUNT} />
         <MarketTicker items={ticks} />
 
-        <div className="mx-auto w-full max-w-[1600px] flex-1 px-4 lg:px-6 py-6">
+        <div className="mx-auto w-full max-w-[1600px] flex-1 px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
           <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_340px] gap-6">
             <div className="hidden lg:block">
               <div className="sticky top-20">
@@ -174,7 +181,8 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
               )}
             </main>
 
-            <div>
+            {/* RIGHT SIDEBAR — hidden on mobile */}
+            <div className="hidden lg:block">
               <RightSidebar
                 weather={weather}
                 horoscopes={horoscopes}
@@ -189,8 +197,4 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       </div>
     </>
   );
-}
-
-function safeParse(s: string): any {
-  try { return JSON.parse(s); } catch { return []; }
 }

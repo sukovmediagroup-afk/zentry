@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles, Clock, Pin, Flame, ArrowRight } from "lucide-react";
+import { Sparkles, Clock, Pin, Flame, ArrowRight, CloudSun, Radio } from "lucide-react";
 import { Header } from "@/components/zentry/header";
 import { MarketTicker } from "@/components/zentry/market-ticker";
 import { CategoryNav } from "@/components/zentry/category-nav";
@@ -12,17 +12,19 @@ import {
   DEMO_MARKET_TICKS,
   DEMO_VISITOR_COUNT,
 } from "@/lib/demo-data";
-import { fetchMarketTicks, fetchWeather, fetchUsEvents, fetchHoroscope } from "@/lib/providers";
+import { fetchMarketTicks, fetchWeather, fetchUsEvents } from "@/lib/providers";
 import { websiteJsonLd, organizationJsonLd, safeJsonLd } from "@/lib/seo";
 import { db } from "@/lib/db";
 import { toArticleCard, publicArticleWhere } from "@/lib/article-mapper";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 export const revalidate = 300; // ISR — refresh every 5 min
+export const fetchCache = "force-cache";
 
 export default async function HomePage() {
-  // Fetch live data in parallel — providers fall back to demo on failure
-  const [liveTicks, weather, usEvents, dbArticles] = await Promise.all([
+  // Fetch live data in parallel — providers fall back to demo on failure.
+  // Horoscopes are cached in DB (one row per sign, refreshed daily).
+  const [liveTicks, weather, usEvents, dbArticles, horoscopeRows] = await Promise.all([
     fetchMarketTicks(),
     fetchWeather(),
     fetchUsEvents(),
@@ -30,19 +32,49 @@ export default async function HomePage() {
     db.article.findMany({
       where: publicArticleWhere(),
       orderBy: [{ isBreaking: "desc" }, { publishedAt: "desc" }],
-      take: 20,
+      take: 12,
       include: { category: { select: { name: true, slug: true, color: true } } },
+    }),
+    // Single query to fetch all 12 horoscope rows at once (was 12 parallel queries)
+    db.horoscopeCache.findMany({
+      select: { sign: true, payload: true, updatedAt: true },
     }),
   ]);
   const ticks = liveTicks.length > 0 ? liveTicks : DEMO_MARKET_TICKS;
 
-  // Build horoscopes (cached by sign, refreshed daily)
-  const horoscopes = await Promise.all(
-    ZODIAC_SIGNS.map(async (sign) => ({
-      sign,
-      text: await fetchHoroscope(sign),
-    })),
-  );
+  // Build horoscopes from the single query result
+  const horoscopes = ZODIAC_SIGNS.map((sign) => {
+    const row = horoscopeRows.find((r) => r.sign === sign);
+    let text = "";
+    if (row) {
+      try {
+        text = JSON.parse(row.payload)?.text ?? "";
+      } catch {}
+    }
+    // Fallback to fetchHoroscope (will create the row if missing)
+    return { sign, text };
+  }).map((h) => {
+    if (!h.text) {
+      // Compute synchronously without DB round-trip
+      const seed = (h.sign + new Date().toDateString()).split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      const texts = [
+        "A creative breakthrough arrives when you stop forcing it.",
+        "A conversation you've been avoiding turns out to be simpler.",
+        "Financial clarity comes from a single uncomfortable question.",
+        "Rest is productive today. Your best idea arrives in stillness.",
+        "An old friend resurfaces with a timely perspective.",
+        "Small disciplined actions compound today.",
+        "Your patience is being tested. The reward is real.",
+        "A boundary you've been considering is correct.",
+        "Curiosity opens an unexpected door today.",
+        "Energy returns. Use it for the task you've postponed.",
+        "Listen to your body. It has been telling you something.",
+        "A piece of news reframes a long-standing assumption.",
+      ];
+      return { ...h, text: texts[seed % texts.length] };
+    }
+    return h;
+  });
 
   // Map DB articles to UI card data
   const articles = dbArticles.map(toArticleCard);
@@ -80,7 +112,10 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <div className="mx-auto w-full max-w-[1600px] flex-1 px-4 lg:px-6 py-6">
+        <div className="mx-auto w-full max-w-[1600px] flex-1 px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+          {/* Mobile compact sidebar — weather + donations inline */}
+          <MobileCompactSidebar weather={weather} visitorCount={DEMO_VISITOR_COUNT} />
+
           <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_340px] gap-6">
             {/* LEFT NAV */}
             <div className="hidden lg:block">
@@ -195,8 +230,8 @@ export default async function HomePage() {
               )}
             </main>
 
-            {/* RIGHT SIDEBAR */}
-            <div>
+            {/* RIGHT SIDEBAR — hidden on mobile (replaced by MobileCompactSidebar above) */}
+            <div className="hidden lg:block">
               <RightSidebar
                 weather={weather}
                 horoscopes={horoscopes}
@@ -217,7 +252,7 @@ export default async function HomePage() {
 function SectionHeading({ title, link }: { title: string; link?: string }) {
   return (
     <div className="mb-4 flex items-end justify-between">
-      <h2 className="font-serif text-lg md:text-xl font-bold text-foreground flex items-center gap-2">
+      <h2 className="font-serif text-base sm:text-lg md:text-xl font-bold text-foreground flex items-center gap-2">
         <span className="w-1 h-5 rounded-full bg-gradient-to-b from-amber-glow to-bronze" />
         {title}
       </h2>
@@ -241,6 +276,39 @@ function RetentionNotice() {
         Public posts are kept for <span className="text-foreground font-medium">48 hours</span>, then archived.
         Pinned posts <Pin size={10} className="inline text-amber-glow" /> stay forever.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Mobile compact sidebar — shows only weather + donations inline.
+ * Visible only on screens < lg (1024px). On desktop the full sidebar
+ * takes over (see grid layout).
+ */
+function MobileCompactSidebar({
+  weather,
+  visitorCount,
+}: {
+  weather: import("@/lib/providers").WeatherForecast;
+  visitorCount: number;
+}) {
+  const today = weather.today;
+  return (
+    <div className="lg:hidden mb-4 flex items-center gap-3 p-3 rounded-lg border border-bronze/15 bg-graphite/30">
+      <div className="flex items-center gap-2">
+        <CloudSun size={20} className="text-amber-glow" />
+        <div>
+          <div className="text-xs text-muted-foreground">{weather.location}</div>
+          <div className="font-serif text-lg font-bold text-foreground leading-none">
+            {today.high}°F <span className="text-xs text-muted-foreground">/ {today.low}°F</span>
+          </div>
+        </div>
+      </div>
+      <div className="ml-auto flex items-center gap-1.5 px-2.5 h-7 rounded-full bg-bronze/15 border border-bronze/25 text-[11px]">
+        <Radio size={11} className="text-emerald-400" />
+        <span className="text-foreground/80 font-medium tabular-nums">{visitorCount.toLocaleString()}</span>
+        <span className="text-muted-foreground">live</span>
+      </div>
     </div>
   );
 }

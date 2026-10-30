@@ -11,7 +11,9 @@ import { toArticleCard, archiveArticleWhere } from "@/lib/article-mapper";
 import { buildMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
+export const revalidate = 600; // 10 min — archive doesn't change often
+export const fetchCache = "force-cache";
 
 export const metadata: Metadata = buildMetadata({
   title: "Archive",
@@ -37,7 +39,7 @@ export default async function ArchivePage() {
       <Header visitorCount={DEMO_VISITOR_COUNT} />
       <MarketTicker items={ticks} />
 
-      <div className="mx-auto w-full max-w-[1600px] flex-1 px-4 lg:px-6 py-6">
+      <div className="mx-auto w-full max-w-[1600px] flex-1 px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
           <div className="hidden lg:block">
             <div className="sticky top-20">

@@ -58,7 +58,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
       <Header visitorCount={DEMO_VISITOR_COUNT} />
       <MarketTicker items={ticks} />
 
-      <div className="mx-auto w-full max-w-[1600px] flex-1 px-4 lg:px-6 py-6">
+      <div className="mx-auto w-full max-w-[1600px] flex-1 px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-6">
           <div className="hidden lg:block">
             <div className="sticky top-20">
