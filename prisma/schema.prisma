@@ -1,13 +1,23 @@
 // Zentry (ARENA USA Technology) — Mass Media Platform
-// Prisma schema. SQLite for local dev; in production point DATABASE_URL to PostgreSQL
-// (Prisma ORM makes the swap a one-line change — no app code changes needed).
+// Prisma schema.
+//
+// Provider: PostgreSQL — required for Vercel serverless (SQLite uses local
+// file I/O which doesn't work on Vercel's read-only filesystem).
+//
+// For local dev you can either:
+//   1. Run a local Postgres via Docker (`docker run -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16`)
+//   2. Use Neon's free tier: https://neon.tech
+//   3. Use Supabase's free tier: https://supabase.com
+//
+// Set DATABASE_URL="postgresql://user:pass@host:5432/dbname?sslmode=require"
+// in .env, then run: bun run db:push && bun run scripts/seed.ts
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
