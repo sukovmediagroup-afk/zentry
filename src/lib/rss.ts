@@ -90,8 +90,8 @@ export const DEFAULT_PERMITTED_SOURCES: PermittedSource[] = [
 ];
 
 // ────────────────────────────────────────────────────────────
-//  RSS/XML parser — no external deps, runs on Edge Runtime.
-//  Uses regex-based extraction (XML is regular enough for our purposes).
+//  RSS/Atom XML parser — no external deps, runs on Edge Runtime.
+//  Supports both RSS 2.0 (<item>) and Atom 1.0 (<entry>) feeds.
 // ────────────────────────────────────────────────────────────
 export function parseRssFeed(xml: string): RssFeed {
   // Strip namespaces & CDATA
@@ -102,23 +102,44 @@ export function parseRssFeed(xml: string): RssFeed {
     .replace(/<content:encoded[^>]*>([\s\S]*?)<\/content:encoded>/g,
       (_, c) => `<contentEncoded>${c}</contentEncoded>`);
 
-  // Channel metadata
+  // Channel metadata (RSS) — also try Atom feed metadata
   const channelTitle = extract(clean, "<title>", "</title>") ?? "Untitled feed";
-  const channelLink = extract(clean, "<link>", "</link>") ?? "";
-  const channelDescription = extract(clean, "<description>", "</description>");
+  // For Atom, link is in <link href="..." /> attribute
+  let channelLink = extract(clean, "<link>", "</link>") ?? "";
+  if (!channelLink) {
+    const atomLinkMatch = clean.match(/<link[^>]*href="([^"]+)"[^>]*>/);
+    channelLink = atomLinkMatch?.[1] ?? "";
+  }
+  const channelDescription = extract(clean, "<description>", "</description>")
+    ?? extract(clean, "<subtitle>", "</subtitle>");
 
-  // Items
+  // Items — try RSS <item> first, then Atom <entry>
   const items: RssItem[] = [];
-  const itemRegex = /<item[\s\S]*?<\/item>/g;
+  const itemRegex = /<(?:item|entry)[\s\S]*?<\/(?:item|entry)>/g;
   let match: RegExpExecArray | null;
   while ((match = itemRegex.exec(clean)) !== null) {
     const block = match[0];
     const title = extract(block, "<title>", "</title>") ?? "";
-    const link = extract(block, "<link>", "</link>") ?? extract(block, "<link[^>]*>", "</link>") ?? "";
-    const description = extract(block, "<description>", "</description>") ?? "";
-    const pubDateString = extract(block, "<pubDate>", "</pubDate>");
-    const guid = extract(block, "<guid[^>]*>", "</guid>") ?? extract(block, "<guid>", "</guid>");
-    const author = extract(block, "<dc:creator>", "</dc:creator>") ?? extract(block, "<author>", "</author>");
+    // RSS: <link>text</link> ; Atom: <link href="..." /> (self-closing)
+    let link = extract(block, "<link>", "</link>") ?? "";
+    if (!link) {
+      const atomLinkMatch = block.match(/<link[^>]*href="([^"]+)"[^>]*\/?>/) ?? block.match(/<link[^>]*href='([^']+)'[^>]*\/?>/);
+      link = atomLinkMatch?.[1] ?? "";
+    }
+    // RSS: <description>; Atom: <summary> or <content>
+    const description = extract(block, "<description>", "</description>")
+      ?? extract(block, "<summary>", "</summary>")
+      ?? extract(block, "<content>", "</content>")
+      ?? "";
+    // RSS: <pubDate>; Atom: <published> or <updated>
+    const pubDateString = extract(block, "<pubDate>", "</pubDate>")
+      ?? extract(block, "<published>", "</published>")
+      ?? extract(block, "<updated>", "</updated>");
+    // RSS: <guid>; Atom: <id>
+    const guid = extract(block, "<guid[^>]*>", "</guid>") ?? extract(block, "<guid>", "</guid>") ?? extract(block, "<id>", "</id>");
+    const author = extract(block, "<dc:creator>", "</dc:creator>")
+      ?? extract(block, "<author>", "</author>")
+      ?? extract(block, "<name>", "</name>");
     const contentEncoded = extract(block, "<contentEncoded>", "</contentEncoded>");
 
     const categories: string[] = [];

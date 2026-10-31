@@ -18,7 +18,7 @@ import { db } from "@/lib/db";
 import { toArticleCard, publicArticleWhere } from "@/lib/article-mapper";
 
 export const dynamic = "force-static";
-export const revalidate = 300; // ISR — refresh every 5 min
+export const revalidate = 60; // ISR — refresh every 60s (was 300s, too stale for news)
 export const fetchCache = "force-cache";
 
 export default async function HomePage() {
